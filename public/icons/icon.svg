@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background - indigo brand color -->
+  <rect width="512" height="512" rx="96" fill="#1e1b4b"/>
+  <!-- Open book shape - yellow accent -->
+  <path d="M96 168c0-22 18-40 40-40h240c22 0 40 18 40 40v176c0 22-18 40-40 40H136c-22 0-40-18-40-40V168Z" fill="#facc15"/>
+  <!-- Left page subtle shadow -->
+  <path d="M136 168h96v176H136c-22 0-40-18-40-40V168Z" fill="#1e1b4b" opacity="0.06"/>
+  <!-- Stylized KG monogram - indigo -->
+  <text x="256" y="272" font-family="system-ui, Arial, sans-serif" font-size="132" font-weight="800" fill="#1e1b4b" text-anchor="middle">KG</text>
+  <!-- Bookmark ribbon -->
+  <path d="M248 128v48l-10 5-10-5v-48h20z" fill="#facc15"/>
+</svg>

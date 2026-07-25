@@ -1,0 +1,52 @@
+commit 45063c6dacabff72a5d4db8ee76936256bf199e9
+Author: Devi Saidulloh <devisaidulloh33@guru.smp.belajar.id>
+Date:   Tue Apr 7 08:26:09 2026 +0700
+
+    fix: address code review feedback for course actions
+
+diff --git a/src/actions/lms-course-supabase.ts b/src/actions/lms-course-supabase.ts
+index af9723a..43bdea7 100644
+--- a/src/actions/lms-course-supabase.ts
++++ b/src/actions/lms-course-supabase.ts
+@@ -5,30 +5,36 @@ import { ensureGuru, getAuthUser } from "@/lib/auth-server";
+ import { revalidatePath } from "next/cache";
+ import { z } from "zod";
+ 
+-const createCourseSchema = z.object({
++export const createCourseSchema = z.object({
+   title: z.string().min(1, "Judul tidak boleh kosong"),
+   description: z.string().optional().nullable(),
+   coverImage: z.string().optional().nullable(),
+   status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
+ });
+ 
+-const updateCourseSchema = z.object({
++export const updateCourseSchema = z.object({
+   title: z.string().min(1, "Judul tidak boleh kosong").optional(),
+   description: z.string().optional().nullable(),
+   coverImage: z.string().optional().nullable(),
+   status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+ });
+ 
+-const createModuleSchema = z.object({
++export const createModuleSchema = z.object({
+   title: z.string().min(1, "Judul modul tidak boleh kosong"),
+   order: z.number().default(0),
+   courseId: z.string().min(1, "ID Kursus tidak valid"),
+ });
+ 
+-const createLessonSchema = z.object({
++export const createLessonSchema = z.object({
+   title: z.string().min(1, "Judul materi tidak boleh kosong"),
+   content: z.string().optional().nullable(),
+-  attachments: z.any().optional().nullable(),
++  attachments: z.array(
++    z.object({
++      name: z.string(),
++      url: z.string(),
++      type: z.string(),
++    })
++  ).optional().nullable(),
+   order: z.number().default(0),
+   moduleId: z.string().min(1, "ID Modul tidak valid"),
+ });

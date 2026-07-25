@@ -1,0 +1,202 @@
+"use server";
+
+import { prisma } from "@/lib/prisma";
+import { ensureGuru, getAuthUser } from "@/lib/auth-server";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const createCourseSchema = z.object({
+  title: z.string().min(1, "Judul tidak boleh kosong"),
+  description: z.string().optional().nullable(),
+  coverImage: z.string().optional().nullable(),
+  status: z.enum(["DRAFT", "PUBLISHED"]).default("DRAFT"),
+});
+
+const updateCourseSchema = z.object({
+  title: z.string().min(1, "Judul tidak boleh kosong").optional(),
+  description: z.string().optional().nullable(),
+  coverImage: z.string().optional().nullable(),
+  status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
+});
+
+const createModuleSchema = z.object({
+  title: z.string().min(1, "Judul modul tidak boleh kosong"),
+  order: z.number().default(0),
+  courseId: z.string().min(1, "ID Kursus tidak valid"),
+});
+
+const createLessonSchema = z.object({
+  title: z.string().min(1, "Judul materi tidak boleh kosong"),
+  content: z.string().optional().nullable(),
+  attachments: z.any().optional().nullable(),
+  order: z.number().default(0),
+  moduleId: z.string().min(1, "ID Modul tidak valid"),
+});
+
+export async function createCourse(data: z.infer<typeof createCourseSchema>) {
+  try {
+    const user = await ensureGuru();
+    
+    const validation = createCourseSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0].message };
+    }
+
+    const course = await prisma.course.create({
+      data: {
+        ...validation.data,
+        teacherId: user.uid,
+      },
+    });
+
+    revalidatePath("/dashboard/guru/lms");
+    return { success: true, data: course };
+  } catch (error) {
+    console.error("Error creating course:", error);
+    return { success: false, error: "Gagal membuat kursus" };
+  }
+}
+
+export async function getCoursesByTeacher(teacherId: string) {
+  try {
+    const user = await getAuthUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const courses = await prisma.course.findMany({
+      where: { teacherId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return { success: true, data: courses };
+  } catch (error) {
+    console.error("Error fetching courses:", error);
+    return { success: false, error: "Gagal mengambil data kursus" };
+  }
+}
+
+export async function getCourseDetails(courseId: string) {
+  try {
+    const user = await getAuthUser();
+    if (!user) throw new Error("Unauthorized");
+
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        modules: {
+          orderBy: { order: "asc" },
+          include: {
+            lessons: {
+              orderBy: { order: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!course) {
+      return { success: false, error: "Kursus tidak ditemukan" };
+    }
+
+    return { success: true, data: course };
+  } catch (error) {
+    console.error("Error fetching course details:", error);
+    return { success: false, error: "Gagal mengambil detail kursus" };
+  }
+}
+
+export async function updateCourse(courseId: string, data: z.infer<typeof updateCourseSchema>) {
+  try {
+    const user = await ensureGuru();
+
+    const validation = updateCourseSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0].message };
+    }
+
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+    });
+
+    if (!existingCourse || existingCourse.teacherId !== user.uid) {
+      return { success: false, error: "Kursus tidak ditemukan atau Anda tidak memiliki akses" };
+    }
+
+    const course = await prisma.course.update({
+      where: { id: courseId },
+      data: validation.data,
+    });
+
+    revalidatePath(`/dashboard/guru/lms/${courseId}`);
+    revalidatePath("/dashboard/guru/lms");
+    return { success: true, data: course };
+  } catch (error) {
+    console.error("Error updating course:", error);
+    return { success: false, error: "Gagal memperbarui kursus" };
+  }
+}
+
+export async function createModule(data: z.infer<typeof createModuleSchema>) {
+  try {
+    const user = await ensureGuru();
+
+    const validation = createModuleSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0].message };
+    }
+
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: validation.data.courseId },
+    });
+
+    if (!existingCourse || existingCourse.teacherId !== user.uid) {
+      return { success: false, error: "Kursus tidak ditemukan atau Anda tidak memiliki akses" };
+    }
+
+    const createdModule = await prisma.courseModule.create({
+      data: validation.data,
+    });
+
+    revalidatePath(`/dashboard/guru/lms/${validation.data.courseId}`);
+    return { success: true, data: createdModule };
+  } catch (error) {
+    console.error("Error creating module:", error);
+    return { success: false, error: "Gagal membuat modul" };
+  }
+}
+
+export async function createLesson(data: z.infer<typeof createLessonSchema>) {
+  try {
+    const user = await ensureGuru();
+
+    const validation = createLessonSchema.safeParse(data);
+    if (!validation.success) {
+      return { success: false, error: validation.error.issues[0].message };
+    }
+
+    // Verify course ownership via module
+    const courseModule = await prisma.courseModule.findUnique({
+      where: { id: validation.data.moduleId },
+      include: { course: true },
+    });
+
+    if (!courseModule || courseModule.course.teacherId !== user.uid) {
+      return { success: false, error: "Modul tidak ditemukan atau Anda tidak memiliki akses" };
+    }
+
+    const lesson = await prisma.courseLesson.create({
+      data: {
+        title: validation.data.title,
+        content: validation.data.content,
+        attachments: validation.data.attachments || [],
+        order: validation.data.order,
+        moduleId: validation.data.moduleId,
+      },
+    });
+
+    revalidatePath(`/dashboard/guru/lms/${courseModule.courseId}`);
+    return { success: true, data: lesson };
+  } catch (error) {
+    console.error("Error creating lesson:", error);
+    return { success: false, error: "Gagal membuat materi" };
+  }
+}

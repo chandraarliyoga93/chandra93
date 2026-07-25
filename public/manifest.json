@@ -1,0 +1,26 @@
+{
+  "name": "Kelas Guru | Platform Belajar Interaktif",
+  "short_name": "Kelas Guru",
+  "description": "Platform manajemen kelas dan pembelajaran interaktif untuk Guru dan Siswa.",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "theme_color": "#1e1b4b",
+  "background_color": "#ffffff",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "categories": ["education", "productivity"]
+}
